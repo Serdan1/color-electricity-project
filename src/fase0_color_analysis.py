@@ -8,14 +8,39 @@ import matplotlib.pyplot as plt
 # === 1. Cargar datos de electricidad ===
 def load_electricity_data(csv_path):
     df = pd.read_csv(csv_path)
-    df = df.rename(columns={
-        "Year": "year",
-        df.columns[-1]: "electricity"
-    })
-    df = df[["year", "electricity"]]
-    df = df.dropna()
-    df = df.groupby("year").mean().reset_index()
+    
+    # Renombrar la columna de año si existe
+    if "Year" in df.columns:
+        df = df.rename(columns={"Year": "year"})
+    
+    # Buscar la columna que contenga "electricity" o "consumption"
+    value_col = None
+    for col in df.columns:
+        if "electricity" in col.lower() or "consumption" in col.lower():
+            value_col = col
+            break
+    
+    if not value_col:
+        raise ValueError("❌ No se encontró una columna de consumo eléctrico en el CSV.")
+    
+    # Nos quedamos SOLO con 'year' y la columna numérica de consumo
+    df = df[["year", value_col]].rename(columns={value_col: "electricity"})
+    
+    # Convertimos a numérico (eliminamos texto)
+    df["electricity"] = pd.to_numeric(df["electricity"], errors="coerce")
+    
+    # Eliminamos filas sin número
+    df = df.dropna(subset=["year", "electricity"])
+    
+    # Convertir año a int
+    df["year"] = df["year"].astype(int)
+    
+    # Agrupamos (si hay duplicados de año)
+    df = df.groupby("year", as_index=False)["electricity"].mean()
+    
+    print(f"✅ Datos cargados correctamente: {len(df)} años entre {df['year'].min()} y {df['year'].max()}")
     return df
+
 
 # === 2. Calcular métricas de color por carpeta ===
 def analyze_colors(root_folder):
